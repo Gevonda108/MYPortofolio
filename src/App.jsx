@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useInView, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import {
+  achievements,
   contacts,
   projects,
   roles,
@@ -10,11 +11,12 @@ import {
   timeline,
 } from './content';
 
-const sectionOrder = ['about', 'skills', 'projects', 'timeline', 'contact'];
+const sectionOrder = ['about', 'skills', 'achievements', 'projects', 'timeline', 'contact'];
 
 const sectionTitles = {
   about: 'About',
   skills: 'Skills',
+  achievements: 'Achievements',
   projects: 'Projects',
   timeline: 'Timeline',
   contact: 'Contact',
@@ -78,6 +80,7 @@ function App() {
   };
 
   const scrollToSection = (id) => {
+    setActiveSection(id);
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
@@ -104,6 +107,9 @@ function App() {
           </section>
           <section id="skills" ref={registerSection('skills')} className="scroll-mt-28">
             <Skills />
+          </section>
+          <section id="achievements" ref={registerSection('achievements')} className="scroll-mt-28">
+            <Achievements />
           </section>
           <section id="projects" ref={registerSection('projects')} className="scroll-mt-28">
             <Projects />
@@ -467,6 +473,59 @@ function Skills() {
                 >
                   {item}
                 </span>
+              ))}
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </SectionCard>
+  );
+}
+
+function Achievements() {
+  return (
+    <SectionCard>
+      <SectionHeader eyebrow="Achievements" title="Kodland achievements grouped by course type." />
+      <div className="grid gap-8 xl:grid-cols-3">
+        {achievements.map((group) => (
+          <motion.div
+            key={group.category}
+            whileHover={{ y: -6 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.05] shadow-2xl shadow-slate-950/10"
+          >
+            <div className="bg-gradient-to-r from-sky-500/20 via-cyan-400/15 to-emerald-400/20 p-6">
+              <h3 className="text-2xl font-semibold text-white">{group.category}</h3>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-white/75">{group.description}</p>
+            </div>
+            <div className="space-y-5 p-6">
+              {group.items.map((item) => (
+                <div key={item.title} className="overflow-hidden rounded-[1.55rem] border border-white/10 bg-[#0f1720] shadow-glow">
+                  <img
+                    src={item.image || '/achievements/placeholder.svg'}
+                    alt={`${item.title} certificate`}
+                    className="h-72 w-full object-contain bg-[#0b0f17]"
+                    loading="lazy"
+                    onError={(event) => {
+                      event.currentTarget.src = '/achievements/placeholder.svg';
+                    }}
+                  />
+                  <div className="p-5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <h4 className="text-lg font-semibold text-white">{item.title}</h4>
+                        <p className="mt-1 text-sm text-muted">{item.subtitle}</p>
+                      </div>
+                      <span className="inline-flex items-center rounded-full bg-accent/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-accent shadow-[0_0_0_1px_rgba(34,197,94,0.2)]">
+                        {item.result.includes('Took') ? 'Ranked' : 'Completed'}
+                      </span>
+                    </div>
+                    <div className="mt-4 space-y-2 text-sm text-muted">
+                      <p>{item.result}</p>
+                      <p className="text-xs uppercase tracking-[0.24em] text-white/50">{item.period}</p>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           </motion.div>

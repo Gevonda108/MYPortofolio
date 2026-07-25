@@ -71,6 +71,62 @@ export const projects = [
   },
 ];
 
+export const achievements = [
+  {
+    category: 'Python',
+    description: 'Multiple Kodland Python certifications with top group rankings and practical project experience.',
+    items: [
+      {
+        title: 'Python level 3 course',
+        subtitle: 'Consists of 32 classes',
+        result: 'Took 1st place in the group',
+        period: '13.11.25 - 09.07.26',
+        image: '/achievements/1.jpg',
+      },
+      {
+        title: 'Python course',
+        subtitle: 'Consists of 32 classes',
+        result: 'Took 1st place in the group',
+        period: '16.04.22 - 30.11.22',
+        image: '/achievements/2.jpg',
+      },
+      {
+        title: 'Python Pro course',
+        subtitle: 'Consists of 48 hours* and 32 classes',
+        result: 'Completed Kodland Python Pro',
+        period: '06.02.25 - 18.09.25',
+        image: '/achievements/4.jpg',
+      },
+    ],
+  },
+  {
+    category: 'Web course',
+    description: 'Kodland web development training covering HTML, CSS, and JavaScript fundamentals for modern sites.',
+    items: [
+      {
+        title: 'Web course',
+        subtitle: 'Consists of 32 classes',
+        result: 'Completed Kodland Web course',
+        period: '07.02.23 - 03.10.23',
+        image: '/achievements/3.jpg',
+      },
+    ],
+  },
+  {
+    category: 'Roblox course',
+    description: 'Designed Roblox experiences while learning game scripting, logic, and group collaboration.',
+    items: [
+      {
+        title: 'Roblox course',
+        subtitle: 'Consists of 32 classes',
+        result: 'Took 2nd place in the group',
+        period: '10.10.23 - 21.05.24',
+        image: '/achievements/5.jpg',
+      },
+    ],
+  },
+];
+
 export const timeline = [
   {
     year: '2022',
