@@ -483,6 +483,10 @@ function Skills() {
 }
 
 function Achievements() {
+  const [zoomedImage, setZoomedImage] = useState(null);
+
+  const closeZoom = () => setZoomedImage(null);
+
   return (
     <SectionCard>
       <SectionHeader eyebrow="Achievements" title="Kodland achievements grouped by course type." />
@@ -501,15 +505,22 @@ function Achievements() {
             <div className="space-y-5 p-6">
               {group.items.map((item) => (
                 <div key={item.title} className="overflow-hidden rounded-[1.55rem] border border-white/10 bg-[#0f1720] shadow-glow">
-                  <img
-                    src={item.image || '/achievements/placeholder.svg'}
-                    alt={`${item.title} certificate`}
-                    className="h-72 w-full object-contain bg-[#0b0f17]"
-                    loading="lazy"
-                    onError={(event) => {
-                      event.currentTarget.src = '/achievements/placeholder.svg';
-                    }}
-                  />
+                  <button
+                    type="button"
+                    onClick={() => setZoomedImage(item.image || '/achievements/placeholder.svg')}
+                    className="group block w-full cursor-zoom-in overflow-hidden"
+                    aria-label={`Zoom ${item.title} certificate`}
+                  >
+                    <img
+                      src={item.image || '/achievements/placeholder.svg'}
+                      alt={`${item.title} certificate`}
+                      className="h-[42vw] min-h-[200px] max-h-[32rem] w-full object-contain bg-[#0b0f17] transition duration-300 group-hover:scale-[1.02]"
+                      loading="lazy"
+                      onError={(event) => {
+                        event.currentTarget.src = '/achievements/placeholder.svg';
+                      }}
+                    />
+                  </button>
                   <div className="p-5">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
@@ -531,6 +542,40 @@ function Achievements() {
           </motion.div>
         ))}
       </div>
+
+      <AnimatePresence>
+        {zoomedImage ? (
+          <motion.div
+            className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/90 p-4 sm:p-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={closeZoom}
+          >
+            <motion.div
+              className="relative max-h-[85vh] w-full max-w-[92vw] overflow-hidden rounded-[2rem] border border-white/10 bg-[#020817] p-4 shadow-[0_0_120px_rgba(15,23,42,0.6)] sm:p-5 md:max-w-4xl lg:max-w-6xl"
+              initial={{ scale: 0.85, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.85, opacity: 0 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={closeZoom}
+                className="absolute right-4 top-4 rounded-full border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white transition hover:bg-slate-900"
+              >
+                Close
+              </button>
+              <img
+                src={zoomedImage}
+                alt="Zoomed achievement"
+                className="h-[75vh] w-full object-contain"
+              />
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </SectionCard>
   );
 }
