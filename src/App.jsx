@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useInView, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import {
   achievements,
   contacts,
@@ -7,26 +10,34 @@ import {
   roles,
   skillGroups,
   stats,
+  supportLinks,
   terminalCommands,
   timeline,
 } from './content';
 
-const sectionOrder = ['about', 'skills', 'achievements', 'projects', 'timeline', 'contact'];
+const sectionOrder = ['about', 'skills', 'achievements', 'projects', 'support', 'suggestions', 'reviews', 'timeline', 'contact'];
 
 const sectionTitles = {
   about: 'About',
   skills: 'Skills',
   achievements: 'Achievements',
   projects: 'Projects',
+  support: 'Support Me',
+  suggestions: 'Suggestions',
+  reviews: 'Reviews',
   timeline: 'Timeline',
   contact: 'Contact',
 };
+
+const FEEDBACK_API_URL = import.meta.env.VITE_FEEDBACK_API_URL || 'http://localhost:3001';
 
 function App() {
   const [activeSection, setActiveSection] = useState('about');
   const [loaded, setLoaded] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [pointer, setPointer] = useState({ x: 0, y: 0 });
+  const [suggestions, setSuggestions] = useState([]);
+  const [reviews, setReviews] = useState([]);
   const sectionRefs = useRef({});
 
   useEffect(() => {
@@ -53,6 +64,32 @@ function App() {
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('pointermove', handlePointer);
     };
+  }, []);
+
+  useEffect(() => {
+    const loadFeedback = async () => {
+      try {
+        const [suggestionsResponse, reviewsResponse] = await Promise.all([
+          fetch(`${FEEDBACK_API_URL}/api/suggestions`),
+          fetch(`${FEEDBACK_API_URL}/api/reviews`),
+        ]);
+
+        if (suggestionsResponse.ok) {
+          const nextSuggestions = await suggestionsResponse.json();
+          setSuggestions(nextSuggestions);
+        }
+
+        if (reviewsResponse.ok) {
+          const nextReviews = await reviewsResponse.json();
+          setReviews(nextReviews);
+        }
+      } catch {
+        setSuggestions([]);
+        setReviews([]);
+      }
+    };
+
+    loadFeedback();
   }, []);
 
   useEffect(() => {
@@ -88,6 +125,40 @@ function App() {
     if (node) sectionRefs.current[id] = node;
   };
 
+  const saveSuggestion = async (username, message) => {
+    try {
+      const response = await fetch(`${FEEDBACK_API_URL}/api/suggestions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, message }),
+      });
+
+      if (response.ok) {
+        const entry = await response.json();
+        setSuggestions((current) => [entry, ...current]);
+      }
+    } catch {
+      // Ignore submission failures and keep the UI responsive.
+    }
+  };
+
+  const saveReview = async ({ name, review, stars, help }) => {
+    try {
+      const response = await fetch(`${FEEDBACK_API_URL}/api/reviews`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, review, stars, help }),
+      });
+
+      if (response.ok) {
+        const entry = await response.json();
+        setReviews((current) => [entry, ...current]);
+      }
+    } catch {
+      // Ignore submission failures and keep the UI responsive.
+    }
+  };
+
   const isLoading = !loaded;
 
   return (
@@ -113,6 +184,15 @@ function App() {
           </section>
           <section id="projects" ref={registerSection('projects')} className="scroll-mt-28">
             <Projects />
+          </section>
+          <section id="support" ref={registerSection('support')} className="scroll-mt-28">
+            <SupportSection />
+          </section>
+          <section id="suggestions" ref={registerSection('suggestions')} className="scroll-mt-28">
+            <SuggestionsSection suggestions={suggestions} onSubmit={saveSuggestion} />
+          </section>
+          <section id="reviews" ref={registerSection('reviews')} className="scroll-mt-28">
+            <ReviewsSection reviews={reviews} onSubmit={saveReview} />
           </section>
           <section id="timeline" ref={registerSection('timeline')} className="scroll-mt-28">
             <TimelineSection />
@@ -594,43 +674,178 @@ function Projects() {
 }
 
 function ProjectCard({ project, index }) {
+  const [readmeOpen, setReadmeOpen] = useState(false);
+  const [readmeContent, setReadmeContent] = useState('');
+  const [readmeLoading, setReadmeLoading] = useState(false);
+  const [readmeError, setReadmeError] = useState('');
+
+  useEffect(() => {
+    if (!readmeOpen || !project.readmeApiUrl) return;
+
+    let active = true;
+    const controller = new AbortController();
+
+    const loadReadme = async () => {
+      setReadmeLoading(true);
+      setReadmeError('');
+
+      try {
+        const response = await fetch(project.readmeApiUrl, { signal: controller.signal });
+        if (!response.ok) {
+          throw new Error(`Unable to load README (${response.status})`);
+        }
+
+        const payload = await response.json();
+        if (!payload.content) {
+          throw new Error('README content is unavailable for this repository.');
+        }
+
+        const decoded = window.atob(payload.content.replace(/\s/g, ''));
+        if (active) {
+          setReadmeContent(decoded);
+        }
+      } catch (error) {
+        if (active) {
+          setReadmeError(error.message || 'README preview is unavailable right now.');
+        }
+      } finally {
+        if (active) {
+          setReadmeLoading(false);
+        }
+      }
+    };
+
+    loadReadme();
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [project.readmeApiUrl, readmeOpen]);
+
   return (
-    <motion.article
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-10% 0px' }}
-      transition={{ duration: 0.55, delay: index * 0.08 }}
-      whileHover={{ y: -6, scale: 1.01 }}
-      className="group overflow-hidden rounded-[1.8rem] border border-white/10 bg-card shadow-glow"
-    >
-      <div className={`relative overflow-hidden border-b border-white/10 bg-gradient-to-br ${project.accent} p-4 sm:p-5`}>
-        <ProjectArtwork project={project} />
-      </div>
-      <div className="space-y-4 p-5 sm:p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h3 className="text-2xl font-semibold tracking-[-0.03em] text-white">{project.title}</h3>
-            <p className="mt-3 max-w-xl text-sm leading-7 text-muted sm:text-base">{project.description}</p>
+    <>
+      <motion.article
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '-10% 0px' }}
+        transition={{ duration: 0.55, delay: index * 0.08 }}
+        whileHover={{ y: -6, scale: 1.01 }}
+        className="group overflow-hidden rounded-[1.8rem] border border-white/10 bg-card shadow-glow"
+      >
+        <div className={`relative overflow-hidden border-b border-white/10 bg-gradient-to-br ${project.accent} p-4 sm:p-5`}>
+          <ProjectArtwork project={project} />
+        </div>
+        <div className="space-y-4 p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="text-2xl font-semibold tracking-[-0.03em] text-white">{project.title}</h3>
+              <p className="mt-3 max-w-xl text-sm leading-7 text-muted sm:text-base">{project.description}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2.5">
+            {project.technologies.map((technology) => (
+              <span
+                key={technology}
+                className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/[0.85] transition-all duration-300 group-hover:border-accent/40 group-hover:bg-accent/10"
+              >
+                {technology}
+              </span>
+            ))}
+          </div>
+
+          <div className="flex flex-col gap-3 pt-1 sm:flex-row">
+            <ProjectButton href={project.href} label="View Repo" />
+            {project.readmeApiUrl ? (
+              <button
+                type="button"
+                onClick={() => setReadmeOpen(true)}
+                className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-white transition-all duration-300 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10"
+              >
+                Preview README
+              </button>
+            ) : null}
+            <ProjectButton href="#contact" label="Contact" accent />
           </div>
         </div>
+      </motion.article>
 
-        <div className="flex flex-wrap gap-2.5">
-          {project.technologies.map((technology) => (
-            <span
-              key={technology}
-              className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/[0.85] transition-all duration-300 group-hover:border-accent/40 group-hover:bg-accent/10"
+      <AnimatePresence>
+        {readmeOpen ? (
+          <motion.div
+            className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/85 p-4 sm:p-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setReadmeOpen(false)}
+          >
+            <motion.div
+              className="relative w-full max-w-4xl overflow-hidden rounded-[2rem] border border-white/10 bg-[#020817] p-4 shadow-[0_0_120px_rgba(15,23,42,0.64)] sm:p-5"
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={(event) => event.stopPropagation()}
             >
-              {technology}
-            </span>
-          ))}
-        </div>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.35em] text-white/50">README preview</p>
+                  <h4 className="mt-2 text-xl font-semibold text-white">{project.title}</h4>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setReadmeOpen(false)}
+                  className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm text-white transition hover:bg-white/10"
+                >
+                  Close
+                </button>
+              </div>
 
-        <div className="flex flex-col gap-3 pt-1 sm:flex-row">
-          <ProjectButton href={project.href} label="GitHub" />
-          <ProjectButton href="#contact" label="Contact" accent />
-        </div>
-      </div>
-    </motion.article>
+              <div className="mt-4 max-h-[70vh] overflow-auto rounded-[1.2rem] border border-white/10 bg-slate-950/80 p-6">
+                {readmeLoading ? (
+                  <p className="text-sm text-muted">Loading README preview…</p>
+                ) : readmeError ? (
+                  <p className="text-sm text-rose-300">{readmeError}</p>
+                ) : (
+                  <div className="prose prose-invert max-w-none text-slate-200">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      rehypePlugins={[rehypeRaw]}
+                      components={{
+                        h1: ({ ...props }) => <h1 className="text-3xl font-bold mt-8 mb-4 text-white border-b border-white/10 pb-3 first:mt-0" {...props} />,
+                        h2: ({ ...props }) => <h2 className="text-2xl font-semibold mt-6 mb-3 text-white border-b border-white/10 pb-2" {...props} />,
+                        h3: ({ ...props }) => <h3 className="text-xl font-semibold mt-5 mb-2 text-white" {...props} />,
+                        h4: ({ ...props }) => <h4 className="text-lg font-semibold mt-4 mb-2 text-white/90" {...props} />,
+                        p: ({ ...props }) => <p className="leading-7 mb-4 text-slate-300" {...props} />,
+                        ul: ({ ...props }) => <ul className="list-disc list-inside mb-4 space-y-2 text-slate-300" {...props} />,
+                        ol: ({ ...props }) => <ol className="list-decimal list-inside mb-4 space-y-2 text-slate-300" {...props} />,
+                        li: ({ ...props }) => <li className="ml-2" {...props} />,
+                        code: ({ inline, ...props }) => inline ? (
+                          <code className="bg-white/10 rounded px-2 py-1 text-accent font-mono text-sm" {...props} />
+                        ) : (
+                          <code className="block bg-white/5 border border-white/10 rounded-lg p-3 mb-4 overflow-x-auto text-sm font-mono text-slate-200" {...props} />
+                        ),
+                        pre: ({ ...props }) => <div {...props} />,
+                        blockquote: ({ ...props }) => <blockquote className="border-l-4 border-accent/50 pl-4 py-2 my-4 text-slate-300 italic bg-white/5 rounded-r-lg pr-4" {...props} />,
+                        a: ({ ...props }) => <a className="text-accent hover:underline" target="_blank" rel="noreferrer" {...props} />,
+                        table: ({ ...props }) => <table className="w-full border-collapse border border-white/10 mb-4" {...props} />,
+                        thead: ({ ...props }) => <thead className="bg-white/5" {...props} />,
+                        th: ({ ...props }) => <th className="border border-white/10 px-3 py-2 text-left text-white" {...props} />,
+                        td: ({ ...props }) => <td className="border border-white/10 px-3 py-2" {...props} />,
+                        hr: () => <hr className="border-t border-white/10 my-6" />,
+                      }}
+                    >
+                      {readmeContent}
+                    </ReactMarkdown>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </>
   );
 }
 
@@ -854,6 +1069,303 @@ function Terminal() {
         </form>
       </div>
     </div>
+  );
+}
+
+function SupportSection() {
+  return (
+    <SectionCard>
+      <div className="overflow-hidden rounded-[2rem] border border-accent/20 bg-[linear-gradient(135deg,rgba(59,130,246,0.16),rgba(34,197,94,0.12))] p-6 sm:p-8">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl space-y-4">
+            <div className="inline-flex items-center rounded-full border border-accent/30 bg-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.32em] text-accent">
+              Support Me
+            </div>
+            <h3 className="text-3xl font-semibold tracking-[-0.03em] text-white sm:text-4xl">
+              Your support helps me keep creating, learning, and shipping more projects.
+            </h3>
+            <p className="text-base leading-8 text-slate-200/90">
+              If my work has helped you, inspired you, or made something easier, a small contribution means a lot. It helps fund more ideas, better projects, and longer hours of building.
+            </p>
+          </div>
+          <div className="rounded-[1.4rem] border border-white/10 bg-slate-950/40 px-4 py-3 text-sm text-slate-300 shadow-glow">
+            <p className="font-semibold text-white">Every support, even small, is appreciated.</p>
+            <p className="mt-1">Thank you for believing in the journey.</p>
+          </div>
+        </div>
+
+        <div className="mt-8 grid gap-5 md:grid-cols-2">
+          {supportLinks.map((link) => (
+            <motion.a
+              key={link.label}
+              href={link.href}
+              target="_blank"
+              rel="noreferrer"
+              whileHover={{ y: -6, scale: 1.01 }}
+              className="group rounded-[1.6rem] border border-white/10 bg-slate-950/35 p-6 shadow-[0_12px_40px_rgba(2,6,23,0.28)] transition-all duration-300 hover:border-accent/45 hover:bg-accent/[0.12]"
+            >
+              <div className="text-sm uppercase tracking-[0.35em] text-muted">{link.label}</div>
+              <div className="mt-4 text-2xl font-semibold text-white">{link.value}</div>
+              <div className="mt-3 text-sm leading-7 text-slate-300">{link.note}</div>
+              <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition-all duration-300 group-hover:-translate-y-0.5 group-hover:border-accent/40">
+                Support now
+                <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
+              </div>
+            </motion.a>
+          ))}
+        </div>
+      </div>
+    </SectionCard>
+  );
+}
+
+function SuggestionsSection({ suggestions, onSubmit }) {
+  const [username, setUsername] = useState('');
+  const [message, setMessage] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    if (!username.trim() || !message.trim()) return;
+    onSubmit(username.trim(), message.trim());
+    setUsername('');
+    setMessage('');
+    setSubmitted(true);
+  };
+
+  return (
+    <SectionCard>
+      <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(135deg,rgba(59,130,246,0.12),rgba(34,197,94,0.10))] p-6 sm:p-8">
+        <div className="max-w-3xl space-y-3">
+          <div className="inline-flex items-center rounded-full border border-accent/30 bg-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.32em] text-accent">
+            Suggestions
+          </div>
+          <h3 className="text-3xl font-semibold tracking-[-0.03em] text-white sm:text-4xl">
+            Share ideas, feedback, or feature requests with me.
+          </h3>
+          <p className="text-base leading-8 text-slate-200/90">
+            Your ideas help shape what I build next, and now they’re visible to other visitors too.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-8 grid gap-4 rounded-[1.6rem] border border-white/10 bg-slate-950/35 p-5 shadow-glow sm:p-6">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-200" htmlFor="suggestion-username">
+                Username
+              </label>
+              <input
+                id="suggestion-username"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                placeholder="Your name or nickname"
+                className="h-12 w-full rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none transition-colors duration-300 placeholder:text-white/35 focus:border-accent/45 focus:bg-white/10"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-200" htmlFor="suggestion-text">
+                Suggestion
+              </label>
+              <textarea
+                id="suggestion-text"
+                value={message}
+                onChange={(event) => setMessage(event.target.value)}
+                placeholder="Write your suggestion here..."
+                rows="4"
+                className="min-h-[120px] w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition-colors duration-300 placeholder:text-white/35 focus:border-accent/45 focus:bg-white/10"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-slate-300">
+              {submitted ? 'Thanks for your suggestion! It is now visible to other visitors.' : 'Your ideas help shape what I build next.'}
+            </p>
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center rounded-full border border-accent/35 bg-accent/15 px-5 py-2.5 text-sm font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-accent/25"
+            >
+              Submit suggestion
+            </button>
+          </div>
+        </form>
+
+        <div className="mt-8 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <h4 className="text-xl font-semibold text-white">Newest suggestions</h4>
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm text-slate-300">
+              {suggestions.length} shared
+            </span>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            {suggestions.length > 0 ? (
+              suggestions.map((item) => (
+                <div key={item.id} className="rounded-[1.45rem] border border-white/10 bg-slate-950/40 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.03)_inset]">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-white">{item.username}</p>
+                      <p className="mt-1 text-xs uppercase tracking-[0.28em] text-accent/80">Idea shared</p>
+                    </div>
+                    <p className="text-xs uppercase tracking-[0.28em] text-white/45">
+                      {new Date(item.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <p className="mt-3 text-sm leading-7 text-slate-300">{item.message}</p>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-[1.4rem] border border-dashed border-white/10 bg-white/5 p-4 text-sm text-slate-300 lg:col-span-2">
+                No suggestions yet. Be the first to share one.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </SectionCard>
+  );
+}
+
+function ReviewsSection({ reviews, onSubmit }) {
+  const [name, setName] = useState('');
+  const [review, setReview] = useState('');
+  const [stars, setStars] = useState(5);
+  const [help, setHelp] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    if (!name.trim() || !review.trim() || !help.trim()) return;
+    onSubmit({ name: name.trim(), review: review.trim(), stars, help: help.trim() });
+    setName('');
+    setReview('');
+    setStars(5);
+    setHelp('');
+    setSubmitted(true);
+  };
+
+  return (
+    <SectionCard>
+      <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(135deg,rgba(34,197,94,0.12),rgba(59,130,246,0.12))] p-6 sm:p-8">
+        <div className="max-w-3xl space-y-3">
+          <div className="inline-flex items-center rounded-full border border-accent/30 bg-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.32em] text-accent">
+            Reviews
+          </div>
+          <h3 className="text-3xl font-semibold tracking-[-0.03em] text-white sm:text-4xl">
+            Leave a review after I helped you.
+          </h3>
+          <p className="text-base leading-8 text-slate-200/90">
+            Share your experience, rate the support you received, and mention what I helped you with.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-8 grid gap-4 rounded-[1.6rem] border border-white/10 bg-slate-950/35 p-5 shadow-glow sm:p-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-200" htmlFor="review-name">
+                Your name
+              </label>
+              <input
+                id="review-name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="Who are you?"
+                className="h-12 w-full rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none transition-colors duration-300 placeholder:text-white/35 focus:border-accent/45 focus:bg-white/10"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-200" htmlFor="review-stars">
+                Rating
+              </label>
+              <div id="review-stars" className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                {[1, 2, 3, 4, 5].map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setStars(value)}
+                    className={`text-2xl transition ${value <= stars ? 'text-amber-400' : 'text-slate-500'}`}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="md:col-span-2">
+              <label className="mb-2 block text-sm font-medium text-slate-200" htmlFor="review-help">
+                What did I help you with?
+              </label>
+              <input
+                id="review-help"
+                value={help}
+                onChange={(event) => setHelp(event.target.value)}
+                placeholder="Example: helped me fix a bot or explain Python"
+                className="h-12 w-full rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none transition-colors duration-300 placeholder:text-white/35 focus:border-accent/45 focus:bg-white/10"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="mb-2 block text-sm font-medium text-slate-200" htmlFor="review-text">
+                Review
+              </label>
+              <textarea
+                id="review-text"
+                value={review}
+                onChange={(event) => setReview(event.target.value)}
+                placeholder="Tell others how I helped you..."
+                rows="4"
+                className="min-h-[120px] w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition-colors duration-300 placeholder:text-white/35 focus:border-accent/45 focus:bg-white/10"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-slate-300">
+              {submitted ? 'Thanks for the review! It has been added to the community feedback.' : 'Your review helps others trust the support I offer.'}
+            </p>
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center rounded-full border border-accent/35 bg-accent/15 px-5 py-2.5 text-sm font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-accent/25"
+            >
+              Submit review
+            </button>
+          </div>
+        </form>
+
+        <div className="mt-8 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <h4 className="text-xl font-semibold text-white">Newest reviews</h4>
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm text-slate-300">
+              {reviews.length} reviews
+            </span>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            {reviews.length > 0 ? (
+              reviews.map((item) => (
+                <div key={item.id} className="rounded-[1.45rem] border border-white/10 bg-slate-950/40 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.03)_inset]">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-white">{item.name}</p>
+                      <p className="mt-1 text-xs uppercase tracking-[0.28em] text-accent/80">Community review</p>
+                    </div>
+                    <div className="flex items-center gap-1 text-amber-400">
+                      {Array.from({ length: 5 }).map((_, index) => (
+                        <span key={`${item.id}-${index}`}>{index < item.stars ? '★' : '☆'}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="mt-2 text-sm text-slate-300">Helped with: {item.help}</p>
+                  <p className="mt-3 text-sm leading-7 text-slate-300">{item.review}</p>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-[1.4rem] border border-dashed border-white/10 bg-white/5 p-4 text-sm text-slate-300 lg:col-span-2">
+                No reviews yet. Be the first to leave one.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </SectionCard>
   );
 }
 

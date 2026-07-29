@@ -43,6 +43,7 @@ export const projects = [
       'Leveling system with XP tracking, auto-ranks, and announcements. Economy tools: daily rewards, work, banking, inventory, and shops. Moderation commands, community profiles, mini-games (trivia, dice, card games, fishing), AI chat, and clan support for team-based features.',
     technologies: ['Python', 'Discord.py', 'SQLite', 'APIs'],
     href: 'https://github.com/Gevonda108/ALL-IN-ONE-Discord-Community-BOT',
+    readmeApiUrl: 'https://api.github.com/repos/Gevonda108/ALL-IN-ONE-Discord-Community-BOT/readme',
     accent: 'from-blue-500/25 via-sky-500/10 to-cyan-500/5',
   },
   {
@@ -51,6 +52,7 @@ export const projects = [
       'Support ticket system with role applications, general support requests, and suggestion tracking. Built-in FAQ browsing, automatic category setup, moderator claim system, and SQLite storage for persistent data management across multiple Discord servers.',
     technologies: ['Python', 'Discord.py', 'SQLite', 'Slash Commands'],
     href: 'https://github.com/Gevonda108/TechSupportBot',
+    readmeApiUrl: 'https://api.github.com/repos/Gevonda108/TechSupportBot/readme',
     accent: 'from-emerald-500/20 via-lime-500/10 to-teal-500/5',
   },
   {
@@ -59,6 +61,7 @@ export const projects = [
       'Collection of practical Python utilities: BasicCalculator, CaesarCipher, PasswordStrength checker, QuizApp, RandomPasswordGen, RockPaperScissor game, SimpleChatBot, To-dolist manager, and LoveTester. Great learning resources for Python fundamentals.',
     technologies: ['Python', 'Scripts', 'Utilities', 'Learning Resources'],
     href: 'https://github.com/Gevonda108/BasicPythonCodes',
+    readmeApiUrl: 'https://api.github.com/repos/Gevonda108/BasicPythonCodes/readme',
     accent: 'from-indigo-500/20 via-blue-500/10 to-violet-500/5',
   },
   {
@@ -66,7 +69,8 @@ export const projects = [
     description:
       'Grade 9 student portfolio built with modern React. Features smooth animations, interactive terminal, project showcase, and real-time skill tracking. Built to demonstrate clean code, design thinking, and full-stack web development capabilities.',
     technologies: ['React', 'Tailwind CSS', 'Framer Motion', 'Vite'],
-    href: '#projects',
+    href: 'https://github.com/Gevonda108/MYPortofolio',
+    readmeApiUrl: 'https://api.github.com/repos/Gevonda108/MYPortofolio/readme',
     accent: 'from-slate-500/20 via-zinc-500/10 to-neutral-500/5',
   },
 ];
@@ -164,6 +168,21 @@ export const terminalCommands = {
   contact: 'Email: GevondaYT@gmail.com | Discord: 7g_raden',
   vibe: 'Current coding status:\nBuilding bots, fixing bugs.\nCoffee: essential.\nShipping features soon.',
 };
+
+export const supportLinks = [
+  {
+    label: 'PayPal',
+    value: 'paypal.me/donateImPoor814',
+    href: 'https://paypal.me/donateImPoor814',
+    note: 'One-time or small recurring support',
+  },
+  {
+    label: 'Ko-fi',
+    value: 'ko-fi.com/gevondageizco',
+    href: 'https://ko-fi.com/gevondageizco',
+    note: 'Buy me a coffee and help fund more projects',
+  },
+];
 
 export const contacts = [
   {
