@@ -1,5 +1,29 @@
 import { ensureFeedbackTables, getPool } from '../lib/feedbackDb.js';
 
+async function parseBody(req) {
+  if (req.body && typeof req.body === 'object') return req.body;
+  if (typeof req.body === 'string') {
+    try {
+      return JSON.parse(req.body);
+    } catch {
+      return {};
+    }
+  }
+
+  const chunks = [];
+  for await (const chunk of req) {
+    chunks.push(chunk);
+  }
+
+  const raw = Buffer.concat(chunks).toString();
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
@@ -29,8 +53,9 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      const username = String(req.body?.username || '').trim();
-      const message = String(req.body?.message || '').trim();
+      const body = await parseBody(req);
+      const username = String(body.username || '').trim();
+      const message = String(body.message || '').trim();
 
       if (!username || !message) {
         res.status(400).json({ error: 'Username and message are required.' });
@@ -52,6 +77,10 @@ export default async function handler(req, res) {
 
     res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
+    if (String(error?.message || '').includes('Missing Neon Postgres')) {
+      res.status(500).json({ error: 'Database is not configured in Vercel env vars.' });
+      return;
+    }
     res.status(500).json({ error: 'Failed to process suggestions request.' });
   }
 }

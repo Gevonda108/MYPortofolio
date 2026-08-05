@@ -1,5 +1,29 @@
 import { ensureFeedbackTables, getPool } from '../lib/feedbackDb.js';
 
+async function parseBody(req) {
+  if (req.body && typeof req.body === 'object') return req.body;
+  if (typeof req.body === 'string') {
+    try {
+      return JSON.parse(req.body);
+    } catch {
+      return {};
+    }
+  }
+
+  const chunks = [];
+  for await (const chunk of req) {
+    chunks.push(chunk);
+  }
+
+  const raw = Buffer.concat(chunks).toString();
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
@@ -29,10 +53,11 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      const name = String(req.body?.name || '').trim();
-      const review = String(req.body?.review || '').trim();
-      const help = String(req.body?.help || '').trim();
-      const stars = Number(req.body?.stars);
+      const body = await parseBody(req);
+      const name = String(body.name || '').trim();
+      const review = String(body.review || '').trim();
+      const help = String(body.help || '').trim();
+      const stars = Number(body.stars);
 
       if (!name || !review || !help || !Number.isFinite(stars) || stars < 1 || stars > 5) {
         res.status(400).json({ error: 'Name, review, help, and stars (1-5) are required.' });
@@ -53,7 +78,11 @@ export default async function handler(req, res) {
     }
 
     res.status(405).json({ error: 'Method not allowed' });
-  } catch {
+  } catch (error) {
+    if (String(error?.message || '').includes('Missing Neon Postgres')) {
+      res.status(500).json({ error: 'Database is not configured in Vercel env vars.' });
+      return;
+    }
     res.status(500).json({ error: 'Failed to process reviews request.' });
   }
 }
