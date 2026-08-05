@@ -29,7 +29,7 @@ const sectionTitles = {
   contact: 'Contact',
 };
 
-const FEEDBACK_API_URL = import.meta.env.VITE_FEEDBACK_API_URL || 'http://localhost:3001';
+const FEEDBACK_API_URL = import.meta.env.VITE_FEEDBACK_API_URL || '';
 
 function App() {
   const [activeSection, setActiveSection] = useState('about');
@@ -136,10 +136,13 @@ function App() {
       if (response.ok) {
         const entry = await response.json();
         setSuggestions((current) => [entry, ...current]);
+        return true;
       }
     } catch {
-      // Ignore submission failures and keep the UI responsive.
+      return false;
     }
+
+    return false;
   };
 
   const saveReview = async ({ name, review, stars, help }) => {
@@ -153,10 +156,13 @@ function App() {
       if (response.ok) {
         const entry = await response.json();
         setReviews((current) => [entry, ...current]);
+        return true;
       }
     } catch {
-      // Ignore submission failures and keep the UI responsive.
+      return false;
     }
+
+    return false;
   };
 
   const isLoading = !loaded;
@@ -569,54 +575,57 @@ function Achievements() {
 
   return (
     <SectionCard>
-      <SectionHeader eyebrow="Achievements" title="Kodland achievements grouped by course type." />
-      <div className="grid gap-8 xl:grid-cols-3">
+      <SectionHeader eyebrow="Achievements" title="Verified milestones and course results." />
+      <div className="grid gap-5 sm:gap-6 lg:grid-cols-2 2xl:grid-cols-3">
         {achievements.map((group) => (
           <motion.div
             key={group.category}
             whileHover={{ y: -6 }}
             transition={{ duration: 0.3 }}
-            className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.05] shadow-2xl shadow-slate-950/10"
+            className="overflow-hidden rounded-[1.6rem] border border-white/10 bg-white/[0.05] shadow-2xl shadow-slate-950/20"
           >
-            <div className="bg-gradient-to-r from-sky-500/20 via-cyan-400/15 to-emerald-400/20 p-6">
-              <h3 className="text-2xl font-semibold text-white">{group.category}</h3>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-white/75">{group.description}</p>
+            <div className="bg-gradient-to-r from-sky-500/20 via-cyan-400/15 to-emerald-400/20 p-4 sm:p-5">
+              <h3 className="text-lg font-semibold text-white sm:text-xl">{group.category}</h3>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-white/80">{group.description}</p>
             </div>
-            <div className="space-y-5 p-6">
+            <div className="space-y-4 p-4 sm:space-y-5">
               {group.items.map((item) => (
-                <div key={item.title} className="overflow-hidden rounded-[1.55rem] border border-white/10 bg-[#0f1720] shadow-glow">
+                <article key={item.title} className="overflow-hidden rounded-[1.3rem] border border-white/10 bg-[#0f1720] shadow-glow">
                   <button
                     type="button"
                     onClick={() => setZoomedImage(item.image || '/achievements/placeholder.svg')}
-                    className="group block w-full cursor-zoom-in overflow-hidden"
+                    className="group relative block w-full cursor-zoom-in overflow-hidden"
                     aria-label={`Zoom ${item.title} certificate`}
                   >
+                    <span className="absolute right-2.5 top-2.5 z-10 rounded-full border border-white/15 bg-black/45 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/85 backdrop-blur">
+                      Tap to zoom
+                    </span>
                     <img
                       src={item.image || '/achievements/placeholder.svg'}
                       alt={`${item.title} certificate`}
-                      className="h-[42vw] min-h-[200px] max-h-[32rem] w-full object-contain bg-[#0b0f17] transition duration-300 group-hover:scale-[1.02]"
+                      className="aspect-[4/3] w-full object-contain bg-[#0b0f17] p-2.5 transition duration-300 group-hover:scale-[1.02]"
                       loading="lazy"
                       onError={(event) => {
                         event.currentTarget.src = '/achievements/placeholder.svg';
                       }}
                     />
                   </button>
-                  <div className="p-5">
+                  <div className="p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <h4 className="text-lg font-semibold text-white">{item.title}</h4>
-                        <p className="mt-1 text-sm text-muted">{item.subtitle}</p>
+                      <div className="min-w-0">
+                        <h4 className="text-base font-semibold leading-6 text-white sm:text-lg">{item.title}</h4>
+                        <p className="mt-1 text-sm leading-6 text-muted">{item.subtitle}</p>
                       </div>
-                      <span className="inline-flex items-center rounded-full bg-accent/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-accent shadow-[0_0_0_1px_rgba(34,197,94,0.2)]">
+                      <span className="inline-flex shrink-0 items-center rounded-full bg-accent/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-accent shadow-[0_0_0_1px_rgba(34,197,94,0.2)]">
                         {item.result.includes('Took') ? 'Ranked' : 'Completed'}
                       </span>
                     </div>
-                    <div className="mt-4 space-y-2 text-sm text-muted">
+                    <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-sm text-muted">
                       <p>{item.result}</p>
-                      <p className="text-xs uppercase tracking-[0.24em] text-white/50">{item.period}</p>
+                      <p className="mt-2 text-xs uppercase tracking-[0.24em] text-white/50">{item.period}</p>
                     </div>
                   </div>
-                </div>
+                </article>
               ))}
             </div>
           </motion.div>
@@ -626,14 +635,14 @@ function Achievements() {
       <AnimatePresence>
         {zoomedImage ? (
           <motion.div
-            className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/90 p-4 sm:p-6"
+            className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/90 p-3 sm:p-6"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={closeZoom}
           >
             <motion.div
-              className="relative max-h-[85vh] w-full max-w-[92vw] overflow-hidden rounded-[2rem] border border-white/10 bg-[#020817] p-4 shadow-[0_0_120px_rgba(15,23,42,0.6)] sm:p-5 md:max-w-4xl lg:max-w-6xl"
+              className="relative max-h-[90vh] w-full max-w-[96vw] overflow-hidden rounded-[1.4rem] border border-white/10 bg-[#020817] p-3 shadow-[0_0_120px_rgba(15,23,42,0.6)] sm:rounded-[2rem] sm:p-5 md:max-w-4xl lg:max-w-6xl"
               initial={{ scale: 0.85, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.85, opacity: 0 }}
@@ -643,14 +652,14 @@ function Achievements() {
               <button
                 type="button"
                 onClick={closeZoom}
-                className="absolute right-4 top-4 rounded-full border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white transition hover:bg-slate-900"
+                className="absolute right-3 top-3 rounded-full border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white transition hover:bg-slate-900"
               >
                 Close
               </button>
               <img
                 src={zoomedImage}
                 alt="Zoomed achievement"
-                className="h-[75vh] w-full object-contain"
+                className="h-[78vh] w-full object-contain"
               />
             </motion.div>
           </motion.div>
@@ -1075,26 +1084,32 @@ function Terminal() {
 function SupportSection() {
   return (
     <SectionCard>
-      <div className="overflow-hidden rounded-[2rem] border border-accent/20 bg-[linear-gradient(135deg,rgba(59,130,246,0.16),rgba(34,197,94,0.12))] p-6 sm:p-8">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-2xl space-y-4">
+      <div className="overflow-hidden rounded-[1.8rem] border border-accent/20 bg-[linear-gradient(135deg,rgba(59,130,246,0.16),rgba(34,197,94,0.12))] p-5 sm:p-7 lg:p-8">
+        <div className="grid gap-5 lg:grid-cols-[1.45fr_1fr] lg:items-end">
+          <div className="max-w-2xl space-y-3.5">
             <div className="inline-flex items-center rounded-full border border-accent/30 bg-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.32em] text-accent">
               Support Me
             </div>
-            <h3 className="text-3xl font-semibold tracking-[-0.03em] text-white sm:text-4xl">
+            <h3 className="text-2xl font-semibold tracking-[-0.03em] text-white sm:text-3xl lg:text-4xl">
               Your support helps me keep creating, learning, and shipping more projects.
             </h3>
-            <p className="text-base leading-8 text-slate-200/90">
+            <p className="text-sm leading-7 text-slate-200/90 sm:text-base sm:leading-8">
               If my work has helped you, inspired you, or made something easier, a small contribution means a lot. It helps fund more ideas, better projects, and longer hours of building.
             </p>
           </div>
-          <div className="rounded-[1.4rem] border border-white/10 bg-slate-950/40 px-4 py-3 text-sm text-slate-300 shadow-glow">
-            <p className="font-semibold text-white">Every support, even small, is appreciated.</p>
-            <p className="mt-1">Thank you for believing in the journey.</p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+            <div className="rounded-[1.2rem] border border-white/10 bg-slate-950/40 px-4 py-3.5 text-sm text-slate-300 shadow-glow">
+              <p className="font-semibold text-white">Every support, even small, is appreciated.</p>
+              <p className="mt-1">Thank you for believing in the journey.</p>
+            </div>
+            <div className="rounded-[1.2rem] border border-white/10 bg-slate-950/35 px-4 py-3.5 text-sm text-slate-300">
+              <p className="text-xs uppercase tracking-[0.24em] text-accent/85">Fast support links</p>
+              <p className="mt-1">All buttons open safely in a new tab on any device.</p>
+            </div>
           </div>
         </div>
 
-        <div className="mt-8 grid gap-5 md:grid-cols-2">
+        <div className="mt-7 grid gap-4 sm:grid-cols-2">
           {supportLinks.map((link) => (
             <motion.a
               key={link.label}
@@ -1102,12 +1117,17 @@ function SupportSection() {
               target="_blank"
               rel="noreferrer"
               whileHover={{ y: -6, scale: 1.01 }}
-              className="group rounded-[1.6rem] border border-white/10 bg-slate-950/35 p-6 shadow-[0_12px_40px_rgba(2,6,23,0.28)] transition-all duration-300 hover:border-accent/45 hover:bg-accent/[0.12]"
+              className="group flex h-full flex-col rounded-[1.25rem] border border-white/10 bg-slate-950/35 p-5 shadow-[0_12px_40px_rgba(2,6,23,0.28)] transition-all duration-300 hover:border-accent/45 hover:bg-accent/[0.12] sm:p-6"
             >
-              <div className="text-sm uppercase tracking-[0.35em] text-muted">{link.label}</div>
-              <div className="mt-4 text-2xl font-semibold text-white">{link.value}</div>
+              <div className="flex items-start justify-between gap-3">
+                <div className="text-xs uppercase tracking-[0.3em] text-muted">{link.label}</div>
+                <div className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs font-semibold text-white/90">
+                  {link.label.slice(0, 2)}
+                </div>
+              </div>
+              <div className="mt-3 text-base font-semibold leading-7 text-white sm:text-xl">{link.value}</div>
               <div className="mt-3 text-sm leading-7 text-slate-300">{link.note}</div>
-              <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition-all duration-300 group-hover:-translate-y-0.5 group-hover:border-accent/40">
+              <div className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition-all duration-300 group-hover:-translate-y-0.5 group-hover:border-accent/40 sm:w-auto sm:justify-start">
                 Support now
                 <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
               </div>
@@ -1122,15 +1142,23 @@ function SupportSection() {
 function SuggestionsSection({ suggestions, onSubmit }) {
   const [username, setUsername] = useState('');
   const [message, setMessage] = useState('');
-  const [submitted, setSubmitted] = useState(false);
+  const [status, setStatus] = useState('idle');
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     if (!username.trim() || !message.trim()) return;
-    onSubmit(username.trim(), message.trim());
+
+    setStatus('saving');
+    const success = await onSubmit(username.trim(), message.trim());
+
+    if (!success) {
+      setStatus('error');
+      return;
+    }
+
     setUsername('');
     setMessage('');
-    setSubmitted(true);
+    setStatus('success');
   };
 
   return (
@@ -1179,13 +1207,17 @@ function SuggestionsSection({ suggestions, onSubmit }) {
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-slate-300">
-              {submitted ? 'Thanks for your suggestion! It is now visible to other visitors.' : 'Your ideas help shape what I build next.'}
+              {status === 'success' ? 'Thanks for your suggestion! It is now visible to other visitors.' : null}
+              {status === 'error' ? 'Could not save your suggestion right now. Please try again.' : null}
+              {status === 'saving' ? 'Saving your suggestion...' : null}
+              {status === 'idle' ? 'Your ideas help shape what I build next.' : null}
             </p>
             <button
               type="submit"
+              disabled={status === 'saving'}
               className="inline-flex items-center justify-center rounded-full border border-accent/35 bg-accent/15 px-5 py-2.5 text-sm font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-accent/25"
             >
-              Submit suggestion
+              {status === 'saving' ? 'Submitting...' : 'Submit suggestion'}
             </button>
           </div>
         </form>
@@ -1231,17 +1263,25 @@ function ReviewsSection({ reviews, onSubmit }) {
   const [review, setReview] = useState('');
   const [stars, setStars] = useState(5);
   const [help, setHelp] = useState('');
-  const [submitted, setSubmitted] = useState(false);
+  const [status, setStatus] = useState('idle');
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     if (!name.trim() || !review.trim() || !help.trim()) return;
-    onSubmit({ name: name.trim(), review: review.trim(), stars, help: help.trim() });
+
+    setStatus('saving');
+    const success = await onSubmit({ name: name.trim(), review: review.trim(), stars, help: help.trim() });
+
+    if (!success) {
+      setStatus('error');
+      return;
+    }
+
     setName('');
     setReview('');
     setStars(5);
     setHelp('');
-    setSubmitted(true);
+    setStatus('success');
   };
 
   return (
@@ -1319,13 +1359,17 @@ function ReviewsSection({ reviews, onSubmit }) {
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-slate-300">
-              {submitted ? 'Thanks for the review! It has been added to the community feedback.' : 'Your review helps others trust the support I offer.'}
+              {status === 'success' ? 'Thanks for the review! It has been added to the community feedback.' : null}
+              {status === 'error' ? 'Could not save your review right now. Please try again.' : null}
+              {status === 'saving' ? 'Saving your review...' : null}
+              {status === 'idle' ? 'Your review helps others trust the support I offer.' : null}
             </p>
             <button
               type="submit"
+              disabled={status === 'saving'}
               className="inline-flex items-center justify-center rounded-full border border-accent/35 bg-accent/15 px-5 py-2.5 text-sm font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-accent/25"
             >
-              Submit review
+              {status === 'saving' ? 'Submitting...' : 'Submit review'}
             </button>
           </div>
         </form>

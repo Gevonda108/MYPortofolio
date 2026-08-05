@@ -1,14 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
-import os from 'node:os';
-import path from 'node:path';
 import { createApp } from '../server.js';
 
-test('suggestions and reviews can be stored and retrieved via the API', async () => {
-  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'feedback-api-'));
-  const storagePath = path.join(tempDir, 'feedback.json');
-  const app = createApp({ storagePath });
+const hasDatabaseUrl = Boolean(process.env.DATABASE_URL || process.env.POSTGRES_URL);
+
+test('suggestions and reviews can be stored and retrieved via the API', { skip: !hasDatabaseUrl }, async () => {
+  const app = createApp();
   const server = app.listen(0);
 
   try {
@@ -65,6 +62,5 @@ test('suggestions and reviews can be stored and retrieved via the API', async ()
     assert.equal(latestReviews[1].name, 'Grace');
   } finally {
     await new Promise((resolve) => server.close(resolve));
-    await rm(tempDir, { recursive: true, force: true });
   }
 });
