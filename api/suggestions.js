@@ -77,10 +77,11 @@ export default async function handler(req, res) {
 
     res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
-    if (String(error?.message || '').includes('Missing Neon Postgres')) {
-      res.status(500).json({ error: 'Database is not configured in Vercel env vars.' });
+    const detail = String(error?.message || 'Unknown error');
+    if (detail.includes('Missing Neon Postgres')) {
+      res.status(500).json({ error: 'Database is not configured in Vercel env vars.', detail });
       return;
     }
-    res.status(500).json({ error: 'Failed to process suggestions request.' });
+    res.status(500).json({ error: 'Failed to process suggestions request.', detail });
   }
 }
